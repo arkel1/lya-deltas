@@ -14,11 +14,8 @@ from itertools import compress
 import healpy
 
 
-<<<<<<< HEAD
-=======
 import argparse
 
->>>>>>> create_bin
 def chi2( alpha, *args ):
    a,b = alpha
    w,flux,ivar = args
@@ -195,115 +192,6 @@ def load_Desi(path_zcat, path_spec, zmin, zmax):
 
 if __name__ == '__main__':
 
-<<<<<<< HEAD
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        description='Overdensities calculation for Ly.a spectra')
-
-    parser.add_argument('--out-dir',type=str,default=None,required=True,
-        help='Output directory')
-
-    parser.add_argument('--drq', type=str, default=None, required=True,
-        help='Catalog of objects in DRQ or Zcat format')
-
-    parser.add_argument('--in-dir', type=str, default=None, required=True,
-        help='Directory to spectra files')
-
-    #parser.add_argument('--log',type=str,default='input.log',required=False,
-    #    help='Log input data')
-
-    parser.add_argument('--mode',type=str,default='eBoss',required=True,
-        help='Open mode of the spectra files: eBoss or Desi')
-
-    parser.add_argument('--zqso-min',type=float,default=None,required=False,
-        help='Lower limit on quasar redshift from drq')
-
-    parser.add_argument('--zqso-max',type=float,default=None,required=False,
-        help='Upper limit on quasar redshift from drq')
-
-    parser.add_argument('--keep-bal',action='store_true',required=False,
-        help='Do not reject BALs in drq')
-
-    parser.add_argument('--bi-max',type=float,required=False,default=None,
-        help='Maximum CIV balnicity index in drq (overrides --keep-bal)')
-
-    parser.add_argument('--lambda-min',type=float,default=3600.,required=False,
-        help='Lower limit on observed wavelength [Angstrom]')
-
-    parser.add_argument('--lambda-max',type=float,default=5500.,required=False,
-        help='Upper limit on observed wavelength [Angstrom]')
-
-    parser.add_argument('--lambda-rest-min',type=float,default=1040.,required=False,
-        help='Lower limit on rest frame wavelength [Angstrom]')
-
-    parser.add_argument('--lambda-rest-max',type=float,default=1200.,required=False,
-        help='Upper limit on rest frame wavelength [Angstrom]')
-
-    parser.add_argument('--rebin',type=int,default=3,required=False,
-        help='Rebin wavelength grid by combining this number of adjacent pixels (ivar weight)')
-
-    parser.add_argument('--npix-min',type=int,default=50,required=False,
-        help='Minimum of rebined pixels')
-
-    parser.add_argument('--dla-vac',type=str,default=None,required=False,
-        help='DLA catalog file')
-
-    parser.add_argument('--dla-mask',type=float,default=0.8,required=False,
-        help='Lower limit on the DLA transmission. Transmissions below this number are masked')
-
-    parser.add_argument('--absorber-vac',type=str,default=None,required=False,
-        help='Absorber catalog file')
-
-    parser.add_argument('--absorber-mask',type=float,default=2.5,required=False,
-        help='Mask width on each side of the absorber central observed wavelength in units of 1e4*dlog10(lambda)')
-
-    parser.add_argument('--mask-file',type=str,default=None,required=False,
-        help='Path to file to mask regions in lambda_OBS and lambda_RF. In file each line is: region_name region_min region_max (OBS or RF) [Angstrom]')
-
-    parser.add_argument('--flux-calib',type=str,default=None,required=False,
-        help='Path to previously produced do_delta.py file to correct for multiplicative errors in the pipeline flux calibration')
-
-    parser.add_argument('--ivar-calib',type=str,default=None,required=False,
-        help='Path to previously produced do_delta.py file to correct for multiplicative errors in the pipeline inverse variance calibration')
-
-    parser.add_argument('--eta-min',type=float,default=0.5,required=False,
-        help='Lower limit for eta')
-
-    parser.add_argument('--eta-max',type=float,default=1.5,required=False,
-        help='Upper limit for eta')
-
-    parser.add_argument('--vlss-min',type=float,default=0.,required=False,
-        help='Lower limit for variance LSS')
-
-    parser.add_argument('--vlss-max',type=float,default=0.3,required=False,
-        help='Upper limit for variance LSS')
-
-    parser.add_argument('--delta-format',type=str,default=None,required=False,
-        help='Format for Pk 1D: Pk1D')
-
-    parser.add_argument('--use-ivar-as-weight', action='store_true', default=False,
-        help='Use ivar as weights (implemented as eta = 1, sigma_lss = fudge = 0)')
-
-    parser.add_argument('--use-constant-weight', action='store_true', default=False,
-        help='Set all the delta weights to one (implemented as eta = 0, sigma_lss = 1, fudge = 0)')
-
-    parser.add_argument('--order',type=int,default=1,required=False,
-        help='Order of the log(lambda) polynomial for the continuum fit, by default 1.')
-
-    parser.add_argument('--nit',type=int,default=5,required=False,
-        help='Number of iterations to determine the mean continuum shape, LSS variances, etc.')
-
-    parser.add_argument('--nproc', type=int, default=None, required=False,
-        help='Number of processors')
-
-    parser.add_argument('--nspec', type=int, default=None, required=False,
-        help='Maximum number of spectra to read')
-
-
-    parser.add_argument('--use-mock-continuum', action='store_true', default = False,
-            help='use the mock continuum for computing the deltas')
-
-    args = parser.parse_args()
-=======
    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, description='Overdensities calculation for Ly.a spectra')
 
    parser.add_argument('--path-cat',type=str,default=None,required=True,
@@ -355,7 +243,6 @@ if __name__ == '__main__':
       print('Wrong catalog type: '+cat_type)
 
    print( 'Done, loaded '+ str( len(spectra)) +' QSO spec. from catalog.'  )
->>>>>>> create_bin
 
 
 
