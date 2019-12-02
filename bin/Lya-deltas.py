@@ -14,6 +14,11 @@ from itertools import compress
 import healpy
 
 
+<<<<<<< HEAD
+=======
+import argparse
+
+>>>>>>> create_bin
 def chi2( alpha, *args ):
    a,b = alpha
    w,flux,ivar = args
@@ -190,6 +195,7 @@ def load_Desi(path_zcat, path_spec, zmin, zmax):
 
 if __name__ == '__main__':
 
+<<<<<<< HEAD
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         description='Overdensities calculation for Ly.a spectra')
 
@@ -297,6 +303,59 @@ if __name__ == '__main__':
             help='use the mock continuum for computing the deltas')
 
     args = parser.parse_args()
+=======
+   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, description='Overdensities calculation for Ly.a spectra')
+
+   parser.add_argument('--path-cat',type=str,default=None,required=True,
+        help='Catalog of objects in DRQ or Zcat format')
+
+   parser.add_argument('--path-spec', type=str, default=None, required=True,
+        help='Directory to spectra files')
+
+   parser.add_argument('--type', type=str, default=None, required=True,
+        help='Catalog of objects in DRQ or Zcat format')
+
+
+
+    #parser.add_argument('--log',type=str,default='input.log',required=False,
+    #    help='Log input data')
+
+   args = parser.parse_args()
+
+   #####################################
+   # Load QSO from plates (eBoss)
+   ### Parameters
+   #if 1:
+   #   path_cat       = '/work/sfbeltranv/DR14_mini/DR14Q_v4_4m.fits'
+   #   path_spec      = '/work3/desi_lya/data/eBOSS/dr15_all/spplates'
+   #   cat_type       = 'eBoss'
+   # for line correction (later)
+   #path_lines     = '/work3/desi_lya/data/eBOSS/dr12_all/dr16-line-sky-mask.txt'
+   #else:
+   # Load QSO from fibers (Desi)
+   #   path_cat       = '/work/sfbeltranv/DR14_mini/zcat_m.fits' 
+   #   path_spec      = '/work3/desi_lya/mocks_quick/london/v9.0.0_small/spectra-16'
+   #   cat_type       = 'Desi'
+
+   path_cat       = args.path_cat
+   path_spec      = args.path_spec
+   cat_type       = args.type
+
+   zmin = 2.
+   zmax = 4.
+
+   # Catalog load
+   if ( cat_type == 'eBoss'):
+      print(cat_type)
+      QSOloc, spectra = load_eBoss(path_cat, path_spec, zmin, zmax)
+   elif ( cat_type == 'Desi'):
+      print(cat_type)
+      QSOloc, spectra = load_Desi(path_cat, path_spec, zmin, zmax)
+   else:
+      print('Wrong catalog type: '+cat_type)
+
+   print( 'Done, loaded '+ str( len(spectra)) +' QSO spec. from catalog.'  )
+>>>>>>> create_bin
 
 
 
