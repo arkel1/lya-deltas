@@ -20,5 +20,5 @@ fi
 python Lya-deltas.py \
 	--path-cat $CAT \
 	--path-spec $SPEC \
-    --path-out $OUT \
+	--path-out $OUT \
 	--type $TYPE
