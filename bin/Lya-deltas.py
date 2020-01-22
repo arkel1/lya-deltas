@@ -6,6 +6,7 @@ import os
 
 from astropy.io import fits as pyfits
 from astropy.table import Table
+import fitsio
 
 # Desi catalog test
 import desispec.io
@@ -13,17 +14,75 @@ import glob
 from itertools import compress
 import healpy
 
-
 import argparse
 
+# def. of comovil distance calculation
+def Rcomv(loglam_):
+   z = (10**loglam_)/1216 - 1
+   return np.interp(z, z_, r_)
+
+# def. conversion of r, declination and ra to x y z
+def coordC(r,ra,dec):
+   return r*np.cos(dec)*np.cos(ra), r*np.cos(dec)*np.sin(ra), r*np.sin(dec)
+
+# def. Function to minimize the error of the linear 
+# regression for the continuum fit (the most basic fit)
 def chi2( alpha, *args ):
    a,b = alpha
    w,flux,ivar = args
    return np.sum( (( flux - (a*w+b) )**2 ) * ivar )
 
+# To crop the DESI spectra filenames for healpy
 def splitID(fi_str):
    fi_str= fi_str.split("spectra-16-")[1]
    return fi_str.split(".fits")[0]
+
+def writeDelta(path_out, QSOloc, spectra, cat_type):
+# save output
+   out = fitsio.FITS(path_out+"/delta.fits.gz",'rw',clobber=True)
+   print('Writting data from '+ str(len(QSOloc))+' QSOs')
+   if ( cat_type == 'eBoss'):
+      for i in range(0, len(QSOloc) ):
+         hd = [ {'name':'RA','value':QSOloc[ i ][2],'comment':'Right Ascension [rad]'},
+                 {'name':'DEC','value':QSOloc[ i ][1],'comment':'Declination [rad]'},
+                 {'name':'Z','value':QSOloc[ i ][0],'comment':'Redshift'},
+                 #{'name':'PMF','value':'{}-{}-{}'.format(d.plate,d.mjd,d.fid)},
+                 {'name':'FIBER_ID','value':QSOloc[ i ][3],'comment':'Object identification'},
+                 #{'name':'PLATE','value':d.plate},
+                 #{'name':'MJD','value':d.mjd,'comment':'Modified Julian date'},
+                 #{'name':'FIBERID','value':d.fid},
+                 {'name':'ORDER','value':1,'comment':'Order of the continuum fit'},
+         ]
+         cols=[spectra[i][0], spectra[i][1]*0, spectra[i][2], spectra[i][1]]
+         names=['WAVELENGHT','DELTA','WEIGHT','CONT']
+         units=['Angstrom','','','']
+         comments = ['Lambda','Delta field','Pixel weights','Continuum']
+
+         out.write(cols,names=names,header=hd,comment=comments,units=units,extname=str(QSOloc[ i ][3]))
+   
+   elif ( cat_type == 'Desi'):
+      for i in range(0, len(QSOloc) ):
+         hd = [ {'name':'RA','value':QSOloc[ i ][2],'comment':'Right Ascension [rad]'},
+                 {'name':'DEC','value':QSOloc[ i ][1],'comment':'Declination [rad]'},
+                 {'name':'Z','value':QSOloc[ i ][0],'comment':'Redshift'},
+                 #{'name':'PMF','value':'{}-{}-{}'.format(d.plate,d.mjd,d.fid)},
+                 {'name':'TARGET_ID','value':QSOloc[ i ][3],'comment':'Object identification'},
+                 #{'name':'PLATE','value':d.plate},
+                 #{'name':'MJD','value':d.mjd,'comment':'Modified Julian date'},
+                 #{'name':'FIBERID','value':d.fid},
+                 {'name':'ORDER','value':1,'comment':'Order of the continuum fit'},
+         ]
+         cols=[spectra[i][0], spectra[i][1]*0, spectra[i][2], spectra[i][1]]
+         names=['WAVELENGHT','DELTA','WEIGHT','CONT']
+         units=['Angstrom','','','']
+         comments = ['Lambda','Delta field','Pixel weights','Continuum']
+
+         out.write(cols,names=names,header=hd,comment=comments,units=units,extname=str(QSOloc[ i ][3]))
+   
+   out.close()
+   print('Done writting to file.')
+
+
 
 def load_eBoss(path_drq, path_spec, zmin, zmax):
    # eBoss Catalog load
@@ -89,7 +148,7 @@ def load_eBoss(path_drq, path_spec, zmin, zmax):
             flx = flux[ids_[i]-1][w_crop]
             ivr = ivar[ids_[i]-1][w_crop]
             
-            QSOloc.append( np.hstack(( zqso_[i], DEC_[i], RA_[i] )) )
+            QSOloc.append( np.hstack(( zqso_[i], DEC_[i], RA_[i], ids_[i]  )) )
             s=np.vstack( ( w_.conj().transpose(), flx.conj().transpose(), ivr.conj().transpose() ) )
             spectra.append( s )
    print('Reading done.')         
@@ -164,7 +223,7 @@ def load_Desi(path_zcat, path_spec, zmin, zmax):
       ll = np.concatenate( ( spectra_base.wave['b'][np.invert(joint1)] , spectra_base.wave['r'] ) )
 
       for i in range(0,nqsoPlate_):
-        # print( str(i)+' of '+str(nqsoPlate_) )
+         
          w_ = (ll)/(1+zqso_[ i ])
          w_crop = ( w_ >= 1040 ) & ( w_ <= lya )
          w_ = w_[w_crop] 
@@ -181,7 +240,7 @@ def load_Desi(path_zcat, path_spec, zmin, zmax):
                spectra_base.ivar['r'][ i ][np.invert(joint2)] ) )
          ivr = ivr[w_crop]
       
-         QSOloc.append( np.hstack(( zqso_[i], DEC_[i], RA_[i] )) ) 
+         QSOloc.append( np.hstack(( zqso_[i], DEC_[i], RA_[i], ids_[i] )) ) 
          s=np.vstack( ( w_.conj().transpose(), flx.conj().transpose(), ivr.conj().transpose() ) )
          spectra.append( s )
    
@@ -191,15 +250,18 @@ def load_Desi(path_zcat, path_spec, zmin, zmax):
 ############# Main Function
 
 if __name__ == '__main__':
-
+   
    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, description='Overdensities calculation for Ly.a spectra')
-
+   
    parser.add_argument('--path-cat',type=str,default=None,required=True,
         help='Catalog of objects in DRQ or Zcat format')
-
+   
    parser.add_argument('--path-spec', type=str, default=None, required=True,
         help='Directory to spectra files')
-
+   
+   parser.add_argument('--path-out', type=str, default=None, required=True,
+        help='Directory to output file(s)')
+   
    parser.add_argument('--type', type=str, default=None, required=True,
         help='Catalog of objects in DRQ or Zcat format')
 
@@ -227,6 +289,7 @@ if __name__ == '__main__':
 
    path_cat       = args.path_cat
    path_spec      = args.path_spec
+   path_out       = args.path_out
    cat_type       = args.type
 
    zmin = 2.
@@ -234,11 +297,15 @@ if __name__ == '__main__':
 
    # Catalog load
    if ( cat_type == 'eBoss'):
-      print(cat_type)
+      print('Catalog type: '+cat_type)
       QSOloc, spectra = load_eBoss(path_cat, path_spec, zmin, zmax)
+      writeDelta(path_out, QSOloc, spectra, 'eBoss')
+    
    elif ( cat_type == 'Desi'):
-      print(cat_type)
+      print('Catalog type: '+cat_type)
       QSOloc, spectra = load_Desi(path_cat, path_spec, zmin, zmax)
+      writeDelta(path_out, QSOloc, spectra, 'Desi')
+
    else:
       print('Wrong catalog type: '+cat_type)
 
