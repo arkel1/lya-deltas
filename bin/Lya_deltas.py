@@ -1,6 +1,5 @@
 import numpy as np
 import scipy as sp
-import matplotlib.pyplot as plt
 import scipy.optimize as scpo
 import os
 
@@ -49,10 +48,15 @@ def normalizeSpec( x, y, xmin, xmax, normfactor = 8):
 
 
 # Writting output files with PICCA format
-def writeDelta(path_out, QSOloc, spectra, cat_type):
+def writeDelta(path_out, QSOloc, spectra, cat_type, nside_=8, nest_=False):
 # save output
-   out = fitsio.FITS(path_out+"/delta.fits.gz",'rw',clobber=True)
+   A = np.array( QSOloc )
+   pix = healpy.ang2pix( nside_ , sp.pi/2.-A[:,1], A[:,2], nest=nest_ )
+   tags = np.unique(pix)
+   #pix = pix.tolist()
+   #tags = tags.tolist()
    print('Writting data from '+ str(len(QSOloc))+' QSOs')
+
    if ( cat_type == 'eBoss'):
       for i in range(0, len(QSOloc) ):
          hd = [ {'name':'RA','value':QSOloc[ i ][2],'comment':'Right Ascension [rad]'},
@@ -65,51 +69,53 @@ def writeDelta(path_out, QSOloc, spectra, cat_type):
                  #{'name':'FIBERID','value':d.fid},
                  {'name':'ORDER','value':1,'comment':'Order of the continuum fit'},
          ]
-         cols=[np.log10( spectra[i][0] ), spectra[i][1]*0, spectra[i][2], spectra[i][1]]
+         cols=[np.log10( spectra[i][0] ), spectra[i][1], spectra[i][2], spectra[i][3]]
          names=['LOGLAM','DELTA','WEIGHT','CONT']
          units=['Log Angstrom','','','']
          comments = ['Log Lambda','Delta field','Pixel weights','Continuum']
-
          out.write(cols,names=names,header=hd,comment=comments,units=units,extname=str(QSOloc[ i ][3]))
    
    elif ( cat_type == 'Desi'):
-      for i in range(0, len(QSOloc) ):
-         hd = [ {'name':'RA','value':QSOloc[ i ][2],'comment':'Right Ascension [rad]'},
-                 {'name':'DEC','value':QSOloc[ i ][1],'comment':'Declination [rad]'},
-                 {'name':'Z','value':QSOloc[ i ][0],'comment':'Redshift'},
-                 #{'name':'PMF','value':'{}-{}-{}'.format(d.plate,d.mjd,d.fid)},
-                 {'name':'TARGET_ID','value':QSOloc[ i ][3],'comment':'Object identification'},
-                 #{'name':'PLATE','value':d.plate},
-                 #{'name':'MJD','value':d.mjd,'comment':'Modified Julian date'},
-                 #{'name':'FIBERID','value':d.fid},
-                 {'name':'ORDER','value':1,'comment':'Order of the continuum fit'},
-         ]
-         cols=[np.log10( spectra[i][0] ), spectra[i][1]*0, spectra[i][2], spectra[i][1]]
-         names=['LOGLAM','DELTA','WEIGHT','CONT']
-         units=['Log Angstrom','','','']
-         comments = ['Log Lambda','Delta field','Pixel weights','Continuum']
+      for j in range(0, len(tags)):
+         out = fitsio.FITS(path_out+'/delta-'+ str(tags[j]) +'.fits.gz','rw',clobber=True)
+         mask = pix == int( tags[j])
+         ar  =  np.squeeze( np.where(mask) )
+         for i in ar:
+            hd = [ {'name':'RA','value':QSOloc[ i ][2],'comment':'Right Ascension [rad]'},
+                    {'name':'DEC','value':QSOloc[ i ][1],'comment':'Declination [rad]'},
+                    {'name':'Z','value':QSOloc[ i ][0],'comment':'Redshift'},
+                    #{'name':'PMF','value':'{}-{}-{}'.format(d.plate,d.mjd,d.fid)},
+                    {'name':'TARGET_ID','value':QSOloc[ i ][3],'comment':'Object identification'},
+                    #{'name':'PLATE','value':d.plate},
+                    #{'name':'MJD','value':d.mjd,'comment':'Modified Julian date'},
+                    #{'name':'FIBERID','value':d.fid},
+                    {'name':'ORDER','value':1,'comment':'Order of the continuum fit'},
+            ]
+            cols=[np.log10( spectra[i][0] ), spectra[i][1], spectra[i][2], spectra[i][3]]
+            names=['LOGLAM','DELTA','WEIGHT','CONT']
+            units=['Log Angstrom','','','']
+            comments = ['Log Lambda','Delta field','Pixel weights','Continuum']
+            out.write( cols, names=names, header=hd, comment=comments, units=units, extname=str(QSOloc[ i ][3] ) )
+         out.close()
+         print('Done writting to file '+str(tags[j])+'.' )
+      print('Writing done')
+   
 
-         out.write(cols,names=names,header=hd,comment=comments,units=units,extname=str(QSOloc[ i ][3]))
-   
-   out.close()
-   print('Done writting to file.')
-   
 # eBoss loading function, returns the same output as load_Desi
 def load_eBoss(path_drq, path_spec, zmin, zmax, lmin, lmax):
    # eBoss Catalog load
    catalog = Table.read(path_drq)
-   
    w = (catalog['THING_ID']>0) & (catalog['Z'] > zmin ) & (catalog['Z']< zmax ) & (catalog['RA']!=catalog['DEC'])& (catalog['RA']>0) & (catalog['DEC']>0)
    reduced_cat = catalog[w]
    reduced_cat = reduced_cat.group_by('PLATE')
-
-   # thing_id = reduced_cat['THING_ID']
+   nest = True
+   in_nside = 16
+   thing_id = reduced_cat['THING_ID']
    fiberid = reduced_cat['FIBERID']
    plate = reduced_cat['PLATE']
    zqso = reduced_cat['Z']
-   DEC = reduced_cat['DEC']
-   RA = reduced_cat['RA']
-
+   DEC = reduced_cat['DEC']* np.pi/180
+   RA = reduced_cat['RA']* np.pi/180
    plate_list=[]
    for p,m in zip(reduced_cat['PLATE'],reduced_cat['MJD']):
         plate_list.append(str(p)+'/spPlate-'+str(p)+'-'+str(m)+'.fits')
@@ -128,6 +134,7 @@ def load_eBoss(path_drq, path_spec, zmin, zmax, lmin, lmax):
 
       wp = plate == int( thisplate )
       ids_=fiberid[wp]
+      tids_=thing_id[wp]
       zqso_=zqso[wp]
       DEC_ = DEC[wp]
       RA_ = RA[wp]
@@ -159,24 +166,24 @@ def load_eBoss(path_drq, path_spec, zmin, zmax, lmin, lmax):
             ivr = ivar[ids_[i]-1][w_crop]
             flx = normalizeSpec( w_, flx, 1300, 1500)
             
-            QSOloc.append( np.hstack(( zqso_[i], DEC_[i], RA_[i], ids_[i]  )) )
+            heal_pix = healpy.ang2pix(in_nside, sp.pi/2.-DEC_[i], RA_[i], nest)
+            
+            QSOloc.append( np.hstack(( zqso_[i], DEC_[i], RA_[i], tids_[i]  )) )
             s=np.vstack( ( w_.conj().transpose(), flx.conj().transpose(), ivr.conj().transpose() ) )
             spectra.append( s )
    print('Reading done.')   
    return QSOloc, spectra
+
 
 # Desi loading function, returns the same output as load_eBoss
 def load_Desi(path_zcat, path_spec, zmin, zmax, lmin, lmax):
    # Desi Catalog load, beginning of function
    catalog = Table.read(path_zcat)
    qso_string = catalog['SPECTYPE'][0]
-   
-   w = (catalog['SPECTYPE']==qso_string ) & (catalog['Z'] > zmin ) & (catalog['Z']< zmax ) & (catalog['RA']!=catalog['DEC'])& (catalog['RA']>0) & (catalog['DEC']>0)
+   w = (catalog['SPECTYPE']==qso_string ) & (catalog['Z'] >= zmin ) & (catalog['Z'] <= zmax ) 
    reduced_cat = catalog[w]
-
    nest = True
    in_nside = 16
-
    targetid = reduced_cat['TARGETID']
    zqso = reduced_cat['Z']
    DEC = reduced_cat['DEC'] * np.pi/180
@@ -184,6 +191,7 @@ def load_Desi(path_zcat, path_spec, zmin, zmax, lmin, lmax):
 
    heal_pix = healpy.ang2pix(in_nside, sp.pi/2.-DEC, RA, nest)
    plate_list = np.unique(heal_pix)
+   
    fi = glob.glob(path_spec+'/*/*/spectra*.fits*')
    print('Found', len(fi), 'spectra files.\n')
    fi_fix = []
@@ -217,25 +225,17 @@ def load_Desi(path_zcat, path_spec, zmin, zmax, lmin, lmax):
       wpf = fi_fix == thisplate
       index = wpf * np.arange( len(fi_fix) )
       index = np.squeeze( index[wpf] )
-      
-      
       #print( thisplate,  nqsoPlate_ , len(fi_fix) )
-      
       # print( thisplate, fi_fix[index], nqsoPlate_, fi[index] )
       print( str(nplate) + ': Loading '+ str(nqsoPlate_) +' QSO spec. from file: '+  str(thisplate) )
-      
       spectra_base = desispec.io.read_spectra( fi[index] )   
-      
       joint1 = np.in1d( spectra_base.wave['b'], spectra_base.wave['r'])
       joint2 = np.in1d( spectra_base.wave['r'], spectra_base.wave['b'])
-            
       ll = np.concatenate( ( spectra_base.wave['b'][np.invert(joint1)] , spectra_base.wave['r'] ) )
       
       for i in range(0,nqsoPlate_):
-         
          index = np.where( np.array( spectra_base.fibermap['TARGETID'].data ) == ids_.data[i] )
          index = np.squeeze(index)
-         
          w_ = (ll)/(1+zqso_[ i ])
          w_crop = ( w_ >= lmin ) & ( w_ <= lmax )
          w_ = w_[w_crop] 
@@ -253,7 +253,7 @@ def load_Desi(path_zcat, path_spec, zmin, zmax, lmin, lmax):
          ivr = ivr[w_crop]
          
          flx = normalizeSpec( w_, flx, 1300, 1500)
-
+         #flx = normalizeSpec( w_, flx, 1300, 1500)
          
          QSOloc.append( np.hstack(( zqso_[i], DEC_[i], RA_[i], ids_[i] )) ) 
          s=np.vstack( ( w_.conj().transpose(), flx.conj().transpose(), ivr.conj().transpose() ) )
@@ -265,13 +265,10 @@ def load_Desi(path_zcat, path_spec, zmin, zmax, lmin, lmax):
 
 
 # EMPCA modeling function. 
-def get_pca( spectra, niter, nvec):
-
+def get_pca( spectra, niter, nvec, lmin = 1040, lmax = 1600 ):
    wwave = sp.arange( lmin, lmax, .1) 
-
    nbObj = len(spectra)
    # nbObj = 20
-
    pcaflux  = sp.zeros(( nbObj, wwave.size))
    pcaivar  = sp.zeros(( nbObj, wwave.size))
 
@@ -291,11 +288,9 @@ def get_pca( spectra, niter, nvec):
    for i in range(nbObj):       #
       w = pcaivar[i]>0.        # subtracting the mean for each spectrum
       pcaflux[i,w] -= data_meanspec[w] #
-
    ### PCA
    print('INFO: Starting EMPCA')
    dmodel = empca.empca(pcaflux, weights=pcaivar, niter=niter, nvec=nvec)
-        
    return dmodel, pcawave, pcaflux, pcaivar, data_meanspec
 
 
@@ -339,38 +334,63 @@ def get_continuum(wavelength,coeff,eigvec,mean_spec,n_vec=4,lmin=1300.0,lmax=150
    return new_wave, stack_mock, std_stack_mock, coefficient, contin_mock
 
 
-# Function for printing the QSO continuum for both catalogs and its final covariaces
-def plot_mean_cont(mwave,mflux,dwave,dflux,stdm,stdd,zmin,zmax,magmin,magmax,xmin,xmax,xminzoom,xmaxzoom):
-   plt.figure(figsize=(14,15))
-   plt.subplot(2,1,1)
-   plt.title('Mean Continuum     {} < MAG < {} and {} < z < {}.'.format(magmin,magmax,zmin,zmax),fontsize = 20)
-   plt.plot(dwave,dflux,'-', label='Stack DR14',alpha=0.7)
-   #plt.fill_between(new_wave,stack_boss+std_stack_boss,stack_boss-std_stack_boss, label='std BOSS', color = 'y', alpha=0.5)
-   plt.plot(mwave,mflux,'-', label='Stack MOCK',alpha=0.7)
-   #plt.fill_between(new_wave,stack_mock+std_stack_mock,stack_mock-std_stack_mock, label='std MOCK', color = 'k', alpha=0.4)
-   plt.xlim(xmin,xmax)
-   #plt.ylim(-0.002,0.01)
-   #axvline(940.93)
-   plt.xlabel('$\lambda_{R.F.}$', fontsize = 20)
-   plt.ylabel('$\mathrm{\overline{Normalized \enspace Flux}}$', fontsize = 20)
-   plt.legend(fontsize='xx-large')
-   plt.grid()
+### PCA delta calculation and centering
+def getdeltas_PCA( spectra, QSOloc, pcawave, pcacont, pcaivar, lamin=1040, lamax=1200):
+   deltas = []
+   for i in range( len(QSOloc) ):         # len(QSOloc)
+      dwave = spectra[ i ][ 0 ]
+      wmask = ( dwave >= lamin ) & ( dwave <= lamax )
+      dwave = dwave[ wmask ]
+      flux  = spectra[ i ][ 1 ]
+      flux  = flux[ wmask]                        # orig flux
+      ivr  =  spectra[ i ][ 2 ]
+      ivr = ivr[ wmask]
+      
+      # pcawave, pcacont from cont. fitting with PCA to QSO delta ticks 
+      # pcacont from pcawave to dwave
+      cont, contivar  = resample_flux(dwave, pcawave, pcacont, ivar=pcaivar  )   # continuum to dwave grid
+      
+      delta = flux / cont - 1
+      delta = delta - np.sum(delta) / len(delta)     # zero Centered delta
 
-   mask = (dwave>900) & (dwave<1216)
+      dwave = dwave * ( 1 + QSOloc[ i ][0] )   # restframe to selframe
+      s=np.vstack( ( dwave.conj().transpose(), delta.conj().transpose(), ivr.conj().transpose(), cont.conj().transpose()  ) )
+      deltas.append( s )
+      #plt.figure()
+      #plt.plot(dwave, flux, 'b') # orig flux
+      #plt.plot(dwave, fluxm, 'r') # zero centered flux
+      #plt.plot(dwave, flux*0+np.sum(flux) / len(flux) )  # mean of orig flux
+      #plt.plot(dwave, fluxm*0, 'y')                      # zero line
+      #plt.plot(dwave, delta)                              # continuum
+      #plt.plot(dwave, cont)
+      #plt.show()
+   return deltas
 
-   plt.subplot(2,1,2)
-   plt.plot(dwave[mask],dflux[mask], label='Stack DR14')
-   plt.fill_between(dwave[mask],dflux[mask]+stdd[mask],dflux[mask]-stdd[mask], label='std BOSS', color = 'y', alpha=0.5)
-   plt.plot(mwave[mask],mflux[mask], label='Stack MOCK')
-   plt.fill_between(mwave[mask],mflux[mask]+stdm[mask],mflux[mask]-stdm[mask], label='std MOCK', color = 'k', alpha=0.4)
-   plt.xlim(xminzoom,xmaxzoom)
-   plt.ylim(0,0.04)
-   plt.xlabel('$\lambda_{R.F.}$', fontsize = 20)
-   plt.ylabel('$\mathrm{\overline{Normalized \enspace Flux}}$', fontsize = 20)
-   plt.legend(fontsize='xx-large')
-   plt.grid()
-
-
+### Deltas using linear function fit
+def getdeltas_LinMinimize( spectra, QSOloc, lamin=1040, lamax=1200):
+   deltas = []
+   for i in range( len(QSOloc) ):         # len(QSOloc)
+      w_, flux_, ivar_ = spectra[ i ]
+      z, dec, ra, id_ = QSOloc[ i ]
+      wmask = ( w_ >= lamin ) & ( w_ <= lamax )
+      w_ = w_[wmask]
+      flux_ = flux_[wmask]
+      ivar_ = ivar_[wmask]
+      param = scpo.minimize(chi2, (1,1), args=( w_, flux_, ivar_) ); #COBYLA
+      CF = (param.x[0]*w_+param.x[1])
+      delta_ = flux_ / CF  -  1
+      delta_ = delta_ - np.sum(delta_) / len(delta_)     # zero Centered delta
+      # dwave to observer frame and to comoving distance
+      w_ = w_ * ( 1 + QSOloc[ i ][0] )   # restframe to selframe
+      s=np.vstack( ( w_.conj().transpose(), delta_.conj().transpose(), ivar_.conj().transpose(), CF.conj().transpose() ) )
+      deltas.append( s )
+      
+      #plt.figure()
+      #plt.plot( w_,flux_ )
+      #plt.plot( w_, delta_ )
+      #plt.plot( w_, CF, 'r' )
+      #plt.show()
+   return deltas
 
 
 
@@ -423,30 +443,48 @@ if __name__ == '__main__':
    cat_type       = args.type
 
    zmin = 2.
-   zmax = 4.
+   zmax = 4.288461538461538
 
    lmin = 1040
    lmax = 2000
 
-   # Catalog load
-   if ( cat_type == 'eBoss'):
-      print('Catalog type: '+cat_type)
-      QSOloc, spectra = load_eBoss(path_drq, path_spec, zmin, zmax, lmin, lmax)
-      #writeDelta(path_out, QSOloc, spectra, 'eBoss')
-    
-   elif ( cat_type == 'Desi'):
-      print('Catalog type: '+cat_type)
-      QSOloc, spectra = load_Desi(path_drq, path_spec, zmin, zmax, lmin, lmax)
-      #writeDelta(path_out, QSOloc, spectra, 'Desi')
+    cont_fit = 'PCA'
+    #cont_fit = 'lin'
 
-   else:
-      print('Wrong catalog type: '+cat_type)
+    # Catalog load
+    if ( cat_type == 'eBoss'):
+       print(cat_type)
+       QSOloc, spectra = load_eBoss(path_drq, path_spec, zmin, zmax, lmin, lmax)
 
-   print( 'Done, loaded '+ str( len(spectra)) +' QSO spec. from catalog.'  )
+    elif ( cat_type == 'Desi'):
+       print(cat_type)
+       QSOloc, spectra = load_Desi(path_drq, path_spec, zmin, zmax, lmin, lmax)
 
+    else:
+       print('Wrong catalog type: '+cat_type)
 
+    print( 'Done, loaded '+ str( len(spectra)) +' QSO spec. from catalog.'  )
+    print( 'Calculating Deltas')
 
+    if ( cont_fit == 'PCA'):
+       dmodel, pcawave, pcaflux, pcaivar, data_meanspec = get_pca(spectra, 10, 10)
+       if 0:     # Calculate cont with current catalog data
+          mwave11, mmean11, mstd11, mcoeff11, mcontin_mock = get_continuum( pcawave, dmodel.coeff, dmodel.eigvec, data_meanspec)
+       else:     # Load continuum from a 300K QSO catalog
+          mwave11 = np.load('wave.npy')
+          mmean11 = np.load('meanf.npy')
+          mstd11 = np.load('meanstd.npy')
+       deltas = getdeltas_PCA(spectra, QSOloc, mwave11, mmean11, mstd11 ) 
+                #   wave, delta, ivar, cont  = deltas 
+    elif ( cont_fit == 'lin'):
+       deltas = getdeltas_LinMinimize(spectra, QSOloc )
+    print( 'Done')
 
+    import os
+    if not os.path.exists(path_out):
+        os.makedirs(path_out)
+
+    writeDelta( path_out, QSOloc, deltas, cat_type )
 
 
 
