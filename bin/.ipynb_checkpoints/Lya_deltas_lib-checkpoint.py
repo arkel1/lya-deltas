@@ -296,7 +296,12 @@ def writeDelta( path_out, QSOlist, nside_ = 8, nest_ = False ):
       out = fitsio.FITS(path_out+'/delta-'+ str(tags[j]) +'.fits.gz','rw',clobber=True)
       mask = pix == int( tags[j])
       are  =  np.squeeze( np.where(mask) )
-      #print( tags[j], len(are) )
+        
+      try:
+         iter(are)
+      except TypeError:
+         are = [are]
+      
       for i in are:
          hd = [ {'name':'RA','value':QSOlist[ i ].ra,'comment':'Right Ascension [rad]'},
                  {'name':'DEC','value':QSOlist[ i ].dec,'comment':'Declination [rad]'},
@@ -397,7 +402,7 @@ def chi2cont( alpha, *args ):
 
 def calcDelta( qso, lmin=1040, lmax=1200 ):
    w_o, ivar_, flux_ = [qso.w, qso.ivar, qso.flux]
-   wm = ( ivar_ > 0 ) & ( w_o >= lamin ) & ( w_o <= lamax )
+   wm = ( ivar_ > 0 ) & ( w_o >= lmin ) & ( w_o <= lmax )
    w_ = w_o[wm] 
    ivar_ = ivar_[wm]  
    flux_ = flux_[wm]
@@ -628,8 +633,8 @@ def get_PCA_deltas( QSOlist, pcawave, pcamcont, pcamcontstd, pcacontin_mock, lam
       
       # pcawave, pcacont from cont. fitting with PCA to QSO delta ticks 
       # pcacont from pcawave to dwave
-      cont  = resample_flux(dwave, pcawave, pcacontin_mock[i], ivar=pcaivar  )   # continuum to dwave grid
-      
+      cont  = resample_flux(dwave, pcawave, pcacontin_mock[i]  )   # continuum to dwave grid
+                                                            # ivar=pcamcontstd
       delta = flux / cont - 1
       
       s=np.vstack( ( dwave.conj().transpose(), delta.conj().transpose(), ivr.conj().transpose(), cont.conj().transpose()  ) )

@@ -17,4 +17,5 @@ python Lya_deltas_do.py \
 	--path-out $OUT \
 	--cat-type $TYPE \
     --fit-method PCA \
-    --nspec 150
+    --nspec 150 \
+    --nproc 8

@@ -165,8 +165,8 @@ if __name__ == '__main__':
          QSO.get_sigma = get_sigma
          QSO.get_epsilon = get_epsilon
    
-   # Recalculate deltas after final iteration
-   QSOlist = recalcDeltas( QSOlist, multiC = args.nproc) 
+      # Recalculate deltas after final iteration
+      QSOlist = recalcDeltas( QSOlist, multiC = args.nproc) 
 
    if not os.path.exists(path_out):
         os.makedirs(path_out)

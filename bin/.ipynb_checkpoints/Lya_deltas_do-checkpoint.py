@@ -4,12 +4,7 @@ import sys
 Lpath1 = "/global/homes/s/sfbeltr/respaldo/lya-deltas/bin"
 sys.path.append(Lpath1)
 
-# Path to EMPCA
-Lpath2 = '/global/homes/s/sfbeltr/respaldo/empca/'
-sys.path.append(Lpath2)
-
 from Lya_deltas_lib import *
-import empca
 import argparse
 
 ############# Main Function
@@ -170,8 +165,8 @@ if __name__ == '__main__':
          QSO.get_sigma = get_sigma
          QSO.get_epsilon = get_epsilon
    
-   # Recalculate deltas after final iteration
-   QSOlist = recalcDeltas( QSOlist, multiC = args.nproc) 
+      # Recalculate deltas after final iteration
+      QSOlist = recalcDeltas( QSOlist, multiC = args.nproc) 
 
    if not os.path.exists(path_out):
         os.makedirs(path_out)
