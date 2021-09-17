@@ -4,7 +4,12 @@ import sys
 Lpath1 = "/global/homes/s/sfbeltr/respaldo/lya-deltas/bin"
 sys.path.append(Lpath1)
 
+# Path to EMPCA
+Lpath2 = '/global/homes/s/sfbeltr/respaldo/empca/'
+sys.path.append(Lpath2)
+
 from Lya_deltas_lib import *
+import empca
 import argparse
 
 ############# Main Function
